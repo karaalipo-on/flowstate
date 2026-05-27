@@ -1,12 +1,5 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
-
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/b0ca362c-9691-4629-8e42-b2fb72d9346e
+## FlowState
+**Description:** An immersive mobile-first virtual focus environment with custom space, a Pomodoro timer, custom ambient sounds, and a minimalist task list.
 
 ## Run Locally
 
