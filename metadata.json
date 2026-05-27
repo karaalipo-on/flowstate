@@ -1,0 +1,6 @@
+{
+  "name": "FlowState",
+  "description": "An immersive mobile-first virtual focus environment with video backgrounds, a Pomodoro timer, custom ambient sounds, and a minimalist task list.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
