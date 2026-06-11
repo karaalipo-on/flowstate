@@ -1,19 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, Circle, ChevronDown, ChevronUp, AlertCircle, PlusCircle, CheckSquare, Square, FileText } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, ChevronDown, ChevronUp, AlertCircle, PlusCircle, CheckSquare, Square, FileText, GripVertical } from 'lucide-react';
 import { Task, SubTask } from '../types';
 
 export default function TodoList() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
   
+  // Drag-and-drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [isOverIndex, setIsOverIndex] = useState<number | null>(null);
+  
+  // Single Primary Session Goal
+  const [primaryFocus, setPrimaryFocus] = useState(() => {
+    try {
+      return localStorage.getItem('flowstate_primary_focus') || '';
+    } catch {
+      return '';
+    }
+  });
+  
   // Controls for creating a new task
   const [newText, setNewText] = useState('');
   const [newPriority, setNewPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [newCategory, setNewCategory] = useState<'Work' | 'Personal' | 'Study' | 'General'>('General');
   const [newEstPomos, setNewEstPomos] = useState(1);
   
   // Expanded task ID for subtask modification and notes views
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [newSubtaskText, setNewSubtaskText] = useState('');
+
+  // Primary Focus sync
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowstate_primary_focus', primaryFocus);
+    } catch (e) {
+      console.warn("Could not save primary focus:", e);
+    }
+  }, [primaryFocus]);
 
   // First cycle sync: Load from localStorage if present
   useEffect(() => {
@@ -46,6 +69,7 @@ export default function TodoList() {
       text: newText.trim(),
       completed: false,
       priority: newPriority,
+      category: newCategory,
       estimatedPomodoros: newEstPomos,
       completedPomodoros: 0,
       subtasks: [],
@@ -58,6 +82,7 @@ export default function TodoList() {
     // Clear prompt inputs
     setNewText('');
     setNewPriority('medium');
+    setNewCategory('General');
     setNewEstPomos(1);
     
     // Auto expand the new task to encourage immediate work flow
@@ -150,6 +175,45 @@ export default function TodoList() {
     saveTasks(updated);
   };
 
+  // Drag and drop event handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', index.toString());
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setIsOverIndex(index);
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const sourceTask = filteredTasks[draggedIndex];
+    const targetTask = filteredTasks[index];
+
+    if (!sourceTask || !targetTask) return;
+
+    // Find indicators inside main array
+    const sourcePos = tasks.findIndex((t) => t.id === sourceTask.id);
+    const targetPos = tasks.findIndex((t) => t.id === targetTask.id);
+
+    if (sourcePos !== -1 && targetPos !== -1) {
+      const reordered = [...tasks];
+      const [removed] = reordered.splice(sourcePos, 1);
+      reordered.splice(targetPos, 0, removed);
+      
+      setTasks(reordered);
+      setDraggedIndex(index);
+    }
+  };
+
+  const handleDragEnd = () => {
+    saveTasks(tasks);
+    setDraggedIndex(null);
+    setIsOverIndex(null);
+  };
+
   // Filter tasks
   const filteredTasks = tasks.filter((t) => {
     if (filter === 'pending') return !t.completed;
@@ -163,18 +227,96 @@ export default function TodoList() {
     high: { bg: 'bg-rose-950/40 text-rose-300 border-rose-900/30', label: 'Urgent' },
   };
 
+  const categoryLabels: Record<string, { bg: string; label: string }> = {
+    General: { bg: 'bg-zinc-900/60 text-zinc-400 border-zinc-800/80', label: '📁 General' },
+    Work: { bg: 'bg-blue-950/40 text-blue-300 border-blue-900/30', label: '💼 Work' },
+    Personal: { bg: 'bg-purple-950/40 text-purple-300 border-purple-900/30', label: '🏠 Personal' },
+    Study: { bg: 'bg-emerald-950/40 text-emerald-300 border-emerald-900/30', label: '📚 Study' },
+  };
+
+  // Productivity metrics for circular progress ring
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.completed).length;
+  const percentageCompleted = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
   return (
     <div id="todo_list_widget_container" className="bg-theme-panel border border-theme-border backdrop-blur-xl rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.2)] shadow-accent/[0.05] w-full flex flex-col transition-all duration-500">
       
       {/* Title block */}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xs uppercase font-bold tracking-widest font-mono text-zinc-300 flex items-center gap-2">
-          <CheckSquare size={15} className="text-accent" />
-          Focus Backlog
-        </h3>
+      <div className="flex justify-between items-center mb-3">
+        <div id="todo_header_title_ring" className="flex items-center gap-2.5">
+          {/* Circular Progress Ring */}
+          <div 
+            id="todo_circular_progress_container" 
+            className="relative flex items-center justify-center w-8 h-8 rounded-full bg-zinc-950/50 border border-white/5 shadow-inner"
+            title={`${percentageCompleted}% of daily tasks completed`}
+          >
+            <svg className="absolute w-8 h-8 -rotate-90">
+              {/* Background circle track */}
+              <circle
+                cx="16"
+                cy="16"
+                r="13"
+                className="stroke-zinc-800/50"
+                strokeWidth="2"
+                fill="transparent"
+              />
+              {/* Foreground interactive progress circle */}
+              <circle
+                cx="16"
+                cy="16"
+                r="13"
+                className="stroke-accent transition-all duration-500 ease-out"
+                strokeWidth="2"
+                fill="transparent"
+                strokeDasharray="81.68"
+                strokeDashoffset={81.68 - (81.68 * percentageCompleted) / 100}
+                strokeLinecap="round"
+              />
+            </svg>
+            <CheckSquare size={13} className="text-accent relative z-10 animate-pulse" />
+          </div>
+
+          <div className="flex flex-col">
+            <h3 className="text-xs uppercase font-bold tracking-widest font-mono text-zinc-300">
+              Focus Backlog
+            </h3>
+            <span className="text-[9px] font-mono font-bold text-accent tracking-wide uppercase">
+              {percentageCompleted}% Completed
+            </span>
+          </div>
+        </div>
+
         <span className="text-[10px] font-mono text-zinc-500">
           {tasks.filter(t => !t.completed).length} items remaining
         </span>
+      </div>
+
+      {/* Primary Session Goal Input Block */}
+      <div id="primary_daily_focus_goal" className="mb-4 bg-zinc-950/40 p-2.5 rounded-xl border border-white/5 flex flex-col gap-1 shadow-inner">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px]" role="img" aria-label="Target">🎯</span>
+          <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-accent">Primary Session focus</span>
+        </div>
+        <div className="flex items-center gap-2 mt-0.5">
+          <input
+            type="text"
+            placeholder="Set a single clear session goal..."
+            value={primaryFocus}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPrimaryFocus(e.target.value)}
+            className="w-full bg-transparent text-[11px] font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-b focus:border-white/10 pb-0.5 transition-all"
+          />
+          {primaryFocus && (
+            <button
+              type="button"
+              onClick={() => setPrimaryFocus('')}
+              className="text-[11px] text-zinc-500 hover:text-white transition px-1 cursor-pointer"
+              title="Clear primary focus"
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       {/* New Task creation form */}
@@ -186,6 +328,35 @@ export default function TodoList() {
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewText(e.target.value)}
           className="w-full bg-transparent text-xs text-white border-b border-zinc-800 py-1.5 focus:border-accent focus:outline-none placeholder-zinc-500"
         />
+
+        {/* Category picker selection */}
+        <div className="flex items-center gap-2 py-0.5">
+          <span className="text-[8px] font-mono font-bold uppercase text-zinc-500 tracking-wider">
+            Tag:
+          </span>
+          <div className="flex gap-1">
+            {(['General', 'Work', 'Personal', 'Study'] as const).map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setNewCategory(cat)}
+                className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold tracking-wider border transition cursor-pointer uppercase ${
+                  newCategory === cat
+                    ? cat === 'Work'
+                      ? 'bg-blue-900/60 text-blue-200 border-blue-500/50'
+                      : cat === 'Personal'
+                        ? 'bg-purple-900/60 text-purple-200 border-purple-500/50'
+                        : cat === 'Study'
+                          ? 'bg-emerald-900/60 text-emerald-200 border-emerald-500/50'
+                          : 'bg-zinc-700/80 text-white border-zinc-400/50'
+                    : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-500 hover:text-zinc-400'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Configurations layout */}
         <div className="flex items-center justify-between gap-2.5">
@@ -265,7 +436,7 @@ export default function TodoList() {
             </p>
           </div>
         ) : (
-          filteredTasks.map((task) => {
+          filteredTasks.map((task, index) => {
             const isExpanded = expandedTaskId === task.id;
             const completedCount = task.subtasks.filter((s) => s.completed).length;
             const hasSubtasks = task.subtasks.length > 0;
@@ -273,10 +444,19 @@ export default function TodoList() {
             return (
               <div
                 key={task.id}
-                className={`flex flex-col border rounded-xl overflow-hidden transition duration-300 bg-black/10 ${
-                  task.completed
-                    ? 'border-white/5 opacity-60'
-                    : 'border-white/10 hover:border-white/20'
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={handleDragEnd}
+                onDragLeave={() => setIsOverIndex(null)}
+                className={`flex flex-col border rounded-xl overflow-hidden transition-all duration-200 bg-black/10 ${
+                  draggedIndex === index
+                    ? 'opacity-40 border-accent/40 scale-[0.98] bg-zinc-950/30'
+                    : isOverIndex === index
+                      ? 'border-accent bg-accent/5'
+                      : task.completed
+                        ? 'border-white/5 opacity-60'
+                        : 'border-white/10 hover:border-white/20'
                 }`}
               >
                 {/* Main clickable cell info */}
@@ -285,6 +465,14 @@ export default function TodoList() {
                   className="flex items-center justify-between gap-3 p-3 cursor-pointer select-none"
                 >
                   <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    {/* Visual drag grip handle */}
+                    <div 
+                      className="text-zinc-600 hover:text-zinc-300 cursor-grab active:cursor-grabbing p-0.5 transition"
+                      title="Drag to reorder and prioritize"
+                    >
+                      <GripVertical size={13} />
+                    </div>
+
                     <button
                       type="button"
                       onClick={(e) => {
@@ -301,17 +489,31 @@ export default function TodoList() {
                     </button>
 
                     <div className="flex flex-col min-w-0 flex-1">
-                      <span className={`text-[11px] font-medium leading-relaxed truncate ${
-                        task.completed ? 'line-through text-zinc-500' : 'text-zinc-200'
-                      }`}>
-                        {task.text}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-[11px] font-medium leading-relaxed truncate ${
+                          task.completed ? 'line-through text-zinc-500' : 'text-zinc-200'
+                        }`}>
+                          {task.text}
+                        </span>
+                        {task.category && task.category !== 'General' && (
+                          <span className={`px-1 rounded text-[7px] font-bold tracking-wide font-mono uppercase bg-accent/20 border border-accent/35 text-white`}>
+                            {task.category}
+                          </span>
+                        )}
+                      </div>
                       
                       <div className="flex items-center gap-2 mt-1">
                         {/* Priority Badge */}
                         <span className={`px-1.5 py-0.5 rounded text-[7px] font-bold tracking-wider font-mono border uppercase ${priorityLabels[task.priority].bg}`}>
                           {priorityLabels[task.priority].label}
                         </span>
+
+                        {/* Category Badge */}
+                        {task.category && (
+                          <span className={`px-1.5 py-0.5 rounded text-[7px] font-bold tracking-wider font-mono border uppercase ${categoryLabels[task.category]?.bg || 'bg-zinc-800/80 text-zinc-400 border-zinc-700/50'}`}>
+                            {categoryLabels[task.category]?.label || task.category}
+                          </span>
+                        )}
                         
                         {/* Subtask micro indicator */}
                         {hasSubtasks && (

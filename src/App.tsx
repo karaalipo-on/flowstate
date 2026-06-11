@@ -32,15 +32,15 @@ export default function App() {
   const [audioEngineWarmed, setAudioEngineWarmed] = useState(false);
   const [showWorkspaceOverlay, setShowWorkspaceOverlay] = useState(true);
 
-  // Core Theme State supporting Warm, Cozy, Summer, Fall, Night, and Glass options
-  const [colorTheme, setColorTheme] = useState<'night' | 'warm' | 'cozy' | 'summer' | 'fall' | 'glass'>(() => {
+  // Core Theme State supporting Warm, Cozy, Summer, Fall, Night, Glass, and Neutral options
+  const [colorTheme, setColorTheme] = useState<'night' | 'warm' | 'cozy' | 'summer' | 'fall' | 'glass' | 'none'>(() => {
     try {
       const stored = localStorage.getItem('flowstate_color_theme');
-      return (stored === 'night' || stored === 'warm' || stored === 'cozy' || stored === 'summer' || stored === 'fall' || stored === 'glass')
+      return (stored === 'night' || stored === 'warm' || stored === 'cozy' || stored === 'summer' || stored === 'fall' || stored === 'glass' || stored === 'none')
         ? stored as any
-        : 'night';
+        : 'none';
     } catch (e) {
-      return 'night';
+      return 'none';
     }
   });
 
@@ -139,7 +139,7 @@ export default function App() {
     <div className={`relative min-h-screen text-zinc-100 flex flex-col font-sans selection:bg-accent/30 selection:text-white overflow-x-hidden theme-${colorTheme} transition-colors duration-500`}>
       
       {/* 1. Immersive Video/Image Backdrop layer */}
-      <BackgroundMedia currentScene={activeScene} />
+      <BackgroundMedia currentScene={activeScene} colorTheme={colorTheme} />
 
       {/* 1b. Interactive Informational Toast alerting active synthesizer details */}
       {audioToast && (

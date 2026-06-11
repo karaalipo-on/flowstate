@@ -429,22 +429,40 @@ class AudioSynthesizer {
    */
   setVolume(type: SoundGeneratorType, vol: number) {
     const volume = Math.max(0, Math.min(1, vol));
+    const oldVolume = this.volumes[type];
     this.volumes[type] = volume;
+
+    console.log(`[AudioSynthesizer] setVolume called for sound: [${type}]. Value transition: [${oldVolume}] -> [${volume}]. Context state: [${this.ctx?.state || 'no context'}]`);
+
+    // Ensure audio context remains active on volume changes
+    if (this.ctx && this.ctx.state === 'suspended') {
+      console.log(`[AudioSynthesizer] Audio context is suspended during volume change of [${type}]. Activating/Resuming...`);
+      this.ctx.resume().catch((e) => console.warn("[AudioSynthesizer] Failed auto-resuming suspended context during volume modification:", e));
+    }
 
     const active = this.activeSounds.get(type);
     if (active) {
       if (this.ctx) {
         try {
+          console.log(`[AudioSynthesizer] Active sound [${type}] found with gainNode. Scheduling gain update. Current node level: [${active.gainNode.gain.value}]`);
           active.gainNode.gain.cancelScheduledValues(this.ctx.currentTime);
           active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, this.ctx.currentTime);
           active.gainNode.gain.linearRampToValueAtTime(volume, this.ctx.currentTime + 0.1);
-        } catch (e) {}
+          console.log(`[AudioSynthesizer] GainNode gain successfully scheduled towards: [${volume}] for sound [${type}]`);
+        } catch (e) {
+          console.error(`[AudioSynthesizer] Failed applying gain change via Web Audio API for [${type}]:`, e);
+        }
       }
       if (active.audio) {
         try {
           active.audio.volume = volume;
-        } catch (e) {}
+          console.log(`[AudioSynthesizer] Active HTMLAudioElement volume updated to [${volume}] for sound [${type}]`);
+        } catch (e) {
+          console.error(`[AudioSynthesizer] Failed applying volume change to HTMLAudioElement for [${type}]:`, e);
+        }
       }
+    } else {
+      console.log(`[AudioSynthesizer] Sound type [${type}] is currently inactive. New default volume cached for launch: [${volume}]`);
     }
   }
 

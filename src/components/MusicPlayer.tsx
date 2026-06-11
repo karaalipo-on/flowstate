@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function convertSpotifyUrlToEmbed(url: string): string {
   if (!url) return '';
@@ -13,16 +13,17 @@ function convertSpotifyUrlToEmbed(url: string): string {
 
 function convertYoutubeUrlToEmbed(url: string): string {
   if (!url) return '';
+  const originParam = typeof window !== 'undefined' ? `&origin=${encodeURIComponent(window.location.origin)}` : '';
   if (url.includes('list=')) {
     const m = url.match(/[&?]list=([^&]+)/);
     if (m) {
-      return `https://www.youtube.com/embed/videoseries?list=${m[1]}&autoplay=0`;
+      return `https://www.youtube.com/embed/videoseries?list=${m[1]}&autoplay=0&enablejsapi=1${originParam}`;
     }
   }
   if (url.includes('watch?v=')) {
     const m = url.match(/[&?]v=([^&]+)/);
     if (m) {
-      return `https://www.youtube.com/embed/${m[1]}?autoplay=0&playlist=${m[1]}&loop=1`;
+      return `https://www.youtube.com/embed/${m[1]}?autoplay=0&playlist=${m[1]}&loop=1&enablejsapi=1${originParam}`;
     }
   }
   if (url.includes('youtu.be/')) {
@@ -31,10 +32,11 @@ function convertYoutubeUrlToEmbed(url: string): string {
     if (id.includes('?')) {
       id = id.split('?')[0];
     }
-    return `https://www.youtube.com/embed/${id}?autoplay=0&playlist=${id}&loop=1`;
+    return `https://www.youtube.com/embed/${id}?autoplay=0&playlist=${id}&loop=1&enablejsapi=1${originParam}`;
   }
   if (url.includes('/embed/')) {
-    return url;
+    const base = url.includes('?') ? `${url}&enablejsapi=1` : `${url}?enablejsapi=1`;
+    return `${base}${originParam}`;
   }
   return '';
 }
@@ -57,6 +59,69 @@ export default function MusicPlayer() {
   });
 
   const [errorMessage, setErrorMessage] = useState('');
+  const [volume, setVolume] = useState(() => {
+    try {
+      const stored = localStorage.getItem('flowstate_media_player_volume');
+      return stored ? parseFloat(stored) : 0.5;
+    } catch {
+      return 0.5;
+    }
+  });
+
+  // Sync volume state changes to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('flowstate_media_player_volume', volume.toString());
+    } catch {}
+  }, [volume]);
+
+  // Adjust volume of player dynamically
+  useEffect(() => {
+    const iframe = document.getElementById('media_widget_iframe') as HTMLIFrameElement | null;
+    if (iframe && iframe.contentWindow) {
+      try {
+        const payload = {
+          event: "command",
+          func: "setVolume",
+          args: [Math.round(volume * 100)]
+        };
+        // Send stringified version
+        iframe.contentWindow.postMessage(JSON.stringify(payload), "*");
+        // Also send raw object for compatibility
+        iframe.contentWindow.postMessage(payload, "*");
+      } catch (err) {
+        console.warn("Could not post volume play control command to iframe:", err);
+      }
+    }
+  }, [volume, activeEmbedUrl]);
+
+  const restoreVolumeConfig = () => {
+    const iframe = document.getElementById('media_widget_iframe') as HTMLIFrameElement | null;
+    if (iframe && iframe.contentWindow) {
+      try {
+        const payload = {
+          event: "command",
+          func: "setVolume",
+          args: [Math.round(volume * 100)]
+        };
+        iframe.contentWindow.postMessage(JSON.stringify(payload), "*");
+        iframe.contentWindow.postMessage(payload, "*");
+      } catch (err) {}
+    }
+  };
+
+  const handleIframeLoad = () => {
+    // Send standard initial volume config
+    restoreVolumeConfig();
+    
+    // YouTube iframe API needs time to bind listener hooks post-render
+    const timings = [200, 800, 1800, 3000];
+    timings.forEach((delay) => {
+      setTimeout(() => {
+        restoreVolumeConfig();
+      }, delay);
+    });
+  };
 
   const getEmbedHeight = () => {
     if (!activeEmbedUrl) return 'h-0';
@@ -105,6 +170,7 @@ export default function MusicPlayer() {
         <div className="flex flex-col gap-2">
           <div className={`w-full ${getEmbedHeight()} rounded-xl overflow-hidden bg-black/60 border border-white/5 relative z-10 transition-all duration-300`}>
             <iframe
+              id="media_widget_iframe"
               src={activeEmbedUrl}
               width="100%"
               height="100%"
@@ -114,8 +180,43 @@ export default function MusicPlayer() {
               loading="lazy"
               className="w-full h-full object-cover rounded-xl"
               title="Music Player Widget"
+              onLoad={handleIframeLoad}
             />
           </div>
+
+          {/* Custom Volume Controls */}
+          <div className="flex flex-col gap-1.5 bg-zinc-900/60 p-2.5 rounded-xl border border-white/5 my-0.5">
+            <div className="flex items-center justify-between gap-2.5">
+              <span className="text-[10px] font-mono font-bold uppercase text-zinc-400 tracking-wider">
+                🔊 Media Volume
+              </span>
+              <span className="text-[10px] font-mono font-bold text-accent">
+                {Math.round(volume * 100)}%
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-xs select-none">🔈</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={volume}
+                onChange={(e) => setVolume(parseFloat(e.target.value))}
+                className="flex-1 accent-accent h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                title="Adjust music volume separately from computer sound"
+              />
+              <span className="text-xs select-none">🔊</span>
+            </div>
+            
+            <p className="text-[7.5px] font-mono text-zinc-500 uppercase tracking-widest text-center mt-0.5 leading-normal">
+              {activeEmbedUrl.toLowerCase().includes('spotify')
+                ? 'ℹ️ Spotify volume controls are native to standard Spotify overlay'
+                : '🚀 Dynamic YouTube background hardware control active'}
+            </p>
+          </div>
+
           <button
             type="button"
             onClick={() => {

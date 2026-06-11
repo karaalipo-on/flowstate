@@ -13,6 +13,7 @@ export interface Task {
   text: string;
   completed: boolean;
   priority: 'low' | 'medium' | 'high';
+  category?: 'Work' | 'Personal' | 'Study' | 'General';
   estimatedPomodoros: number;
   completedPomodoros: number;
   subtasks: SubTask[];

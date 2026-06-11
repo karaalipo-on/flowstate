@@ -169,6 +169,19 @@ export default function SoundMixer() {
   };
 
   const handleVolumeChange = (type: SoundGeneratorType, val: number) => {
+    console.log(`[SoundMixer] User dragging slider for [${type}]. New volume input value: [${val}]`);
+    
+    // Proactively verify and resume AudioContext status to ensure uninterrupted state
+    audioSynthesizer.resumeContext()
+      .then((active) => {
+        if (!active) {
+          console.warn(`[SoundMixer] Ambient generation is standing by: Could not ensure context is fully active`);
+        }
+      })
+      .catch((err) => {
+        console.error(`[SoundMixer] Error resuming context on volume action:`, err);
+      });
+
     const updated = sounds.map((s) => {
       if (s.type === type) {
         audioSynthesizer.setVolume(type, val);

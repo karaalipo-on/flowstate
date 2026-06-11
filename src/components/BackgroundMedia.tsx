@@ -3,9 +3,10 @@ import { Scene } from '../types';
 
 interface BackgroundMediaProps {
   currentScene: Scene;
+  colorTheme: 'night' | 'warm' | 'cozy' | 'summer' | 'fall' | 'glass' | 'none';
 }
 
-export default function BackgroundMedia({ currentScene }: BackgroundMediaProps) {
+export default function BackgroundMedia({ currentScene, colorTheme }: BackgroundMediaProps) {
   const [videoLoading, setVideoLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -17,13 +18,24 @@ export default function BackgroundMedia({ currentScene }: BackgroundMediaProps) 
 
   const finalVideoUrl = currentScene.videoUrl || currentScene.url;
 
+  // Custom detector for space backgrounds to specifically verify and refine neutral presets
+  const isSpaceScene = currentScene.id === 'default-space' || 
+    currentScene.name.toLowerCase().includes('space') || 
+    (currentScene.credit && currentScene.credit.toLowerCase().includes('space'));
+
   return (
     <div className="fixed inset-0 w-full h-full -z-20 bg-[var(--bg)] overflow-hidden pointer-events-none select-none transition-colors duration-500">
-      {/* Absolute dark overlay matching original design and increasing readability */}
-      <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/80 via-black/35 to-black/70 pointer-events-none" />
+      {/* Absolute dark overlay - lighter opacity configuration to make the background significantly clearer */}
+      <div className={`absolute inset-0 z-10 transition-all duration-500 pointer-events-none ${
+        colorTheme === 'none' && isSpaceScene
+          ? 'bg-gradient-to-t from-black/55 via-transparent to-black/40'
+          : 'bg-gradient-to-t from-black/70 via-black/15 to-black/55'
+      }`} />
       
-      {/* Decorative Radial atmosphere ambient glow */}
-      <div className="absolute inset-0 z-10 bg-[radial-gradient(circle_at_50%_40%,var(--accent-glow),transparent_50%)] pointer-events-none" />
+      {/* Decorative Radial atmosphere ambient glow - completely removed for the neutral setting to discard color theme tints */}
+      {colorTheme !== 'none' && (
+        <div className="absolute inset-0 z-10 bg-[radial-gradient(circle_at_50%_40%,var(--accent-glow),transparent_50%)] pointer-events-none" />
+      )}
 
       {/* Image / High-Performance Ambient Wallpaper Renderer */}
       {currentScene.type === 'ai-image' && currentScene.url && !hasError && (
@@ -38,8 +50,9 @@ export default function BackgroundMedia({ currentScene }: BackgroundMediaProps) 
             setVideoLoading(false);
           }}
           className={`w-full h-full object-cover animate-breathe-slow transition-opacity duration-1000 ${
-            videoLoading ? 'opacity-0' : 'opacity-80'
+            videoLoading ? 'opacity-0' : 'opacity-[0.88]'
           }`}
+          style={{ filter: 'blur(2px)' }}
         />
       )}
 
@@ -59,8 +72,9 @@ export default function BackgroundMedia({ currentScene }: BackgroundMediaProps) 
             setVideoLoading(false);
           }}
           className={`w-full h-full object-cover transition-opacity duration-1000 ${
-            videoLoading ? 'opacity-0' : 'opacity-80'
+            videoLoading ? 'opacity-0' : 'opacity-[0.88]'
           }`}
+          style={{ filter: 'blur(2px)' }}
         >
           <source src={finalVideoUrl} type="video/mp4" />
         </video>

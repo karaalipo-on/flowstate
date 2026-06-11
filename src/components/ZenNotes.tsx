@@ -1,8 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { PenTool, CheckCircle, Save, Delete, FileText, Type } from 'lucide-react';
 
+const DEFAULT_NOTES = `Welcome to FlowState Focus Workspace!
+
+★ WHAT IT DOES:
+- Aesthetic Focus Ambient Player: Immersive background scenes custom-built with widescreen scenic videos and sound triggers.
+- AI Scenic Generator: Enter any prompt in the 'Scene Switcher' (e.g. "rainy retro-cyberpunk cafe") to generate custom-designed backgrounds fueled by Gemini, completely fallback-safe!
+- Web Audio Synthesizer: Fully-procedural ambient noise machine triggering organic sounds (rain, cafe chat, cozy fireplace click, rustling leaves) without draining internet bandwidth.
+- Spotify Widget: Clean music integrations sized to a perfect, distraction-free 160px layout.
+- Minimalist Task Master: To-do items for structure.
+
+📌 IMPORTANT LOCAL-STORAGE NOTES:
+1. 100% Client-Side Privacy: All task lists, selected background configurations, themes, active scenes, and scratchpad writings are stored directly inside your browser cache (localStorage).
+2. Local Limitation: Clearing your browser history, cache, or using a private/incognito window will reset these values back to defaults.
+3. No Cloud Tracking: FlowState never uploads any of your work notes, items, or checklists to a remote server. Everything remains securely on your local machine.`;
+
 export default function ZenNotes() {
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(DEFAULT_NOTES);
   const [title, setTitle] = useState('FlowState Focus Notes');
   const [savingState, setSavingState] = useState<'idle' | 'saving' | 'saved'>('saved');
   const [fontSize, setFontSize] = useState<'text-xs' | 'text-sm' | 'text-base'>('text-sm');

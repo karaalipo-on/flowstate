@@ -6,8 +6,8 @@ import { SCENES } from '../data/scenes';
 interface SceneSwitcherProps {
   activeScene: Scene;
   onSceneSelect: (scene: Scene) => void;
-  colorTheme: 'night' | 'warm' | 'cozy' | 'summer' | 'fall' | 'glass';
-  onColorThemeSelect: (theme: 'night' | 'warm' | 'cozy' | 'summer' | 'fall' | 'glass') => void;
+  colorTheme: 'night' | 'warm' | 'cozy' | 'summer' | 'fall' | 'glass' | 'none';
+  onColorThemeSelect: (theme: 'night' | 'warm' | 'cozy' | 'summer' | 'fall' | 'glass' | 'none') => void;
 }
 
 export default function SceneSwitcher({ 
@@ -161,9 +161,20 @@ export default function SceneSwitcher({
 
       {/* 3. Integrated Color Theme Selection Deck */}
       <div className="flex flex-col gap-3">
-        <span className="text-[10px] font-mono font-bold uppercase text-zinc-400 tracking-wider">
-          🎨 Active Color Theme
-        </span>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-mono font-bold uppercase text-zinc-400 tracking-wider">
+            🎨 Active Color Theme
+          </span>
+          {colorTheme !== 'none' && (
+            <button
+              onClick={() => onColorThemeSelect('none')}
+              className="text-[9px] font-mono font-bold uppercase text-accent hover:text-white cursor-pointer transition select-none flex items-center gap-1 hover:underline"
+              title="Reset color theme back to default neutral focus style"
+            >
+              Reset to Default
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-2">
           {THEMES.map((t) => {
             const isSelected = colorTheme === t.id;
