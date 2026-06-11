@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Palette, Plus, Trash2, Video, Sparkles, Image, Check } from 'lucide-react';
+import { Palette, Plus, Trash2, Video, Sparkles, Image, Check, Minimize2, Maximize2 } from 'lucide-react';
 import { Scene } from '../types';
 import { SCENES } from '../data/scenes';
 
@@ -17,6 +17,23 @@ export default function SceneSwitcher({
   onColorThemeSelect
 }: SceneSwitcherProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(() => {
+    try {
+      return localStorage.getItem('flowstate_scene_switcher_minimized') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleMinimize = () => {
+    setIsMinimized(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('flowstate_scene_switcher_minimized', String(next));
+      } catch {}
+      return next;
+    });
+  };
   
   // Custom scenes state with persistent localStorage
   const [customScenes, setCustomScenes] = useState<Scene[]>(() => {
@@ -139,73 +156,110 @@ export default function SceneSwitcher({
     
     // If the currently active scene was deleted, fallback to the default list first item
     if (activeScene.id === idToDelete) {
-      onSceneSelect(SCENES[0]);
+       onSceneSelect(SCENES[0]);
     }
   };
 
   // Combine default fallback scenes list with custom ones
   const allAvailableScenes = [...customScenes, ...SCENES];
 
+  if (isMinimized) {
+    return (
+      <div 
+        id="scene_switcher_widget_wrapper" 
+        className="bg-theme-panel border border-theme-border backdrop-blur-xl rounded-2xl p-4.5 shadow-[0_8px_32px_rgba(0,0,0,0.2)] shadow-accent/[0.05] w-full flex items-center justify-between transition-all duration-300"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-accent/15 border border-accent/20 rounded-xl text-accent">
+            <Palette size={16} />
+          </div>
+          <div className="flex flex-col">
+            <h3 className="text-xs uppercase font-semibold tracking-wider font-mono text-zinc-300">
+              Atmosphere Workspace
+            </h3>
+            <span className="text-[11px] font-mono font-medium text-accent uppercase tracking-wide">
+              Selected: {activeScene.name} {colorTheme !== 'none' && `• ${colorTheme}`}
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={toggleMinimize}
+          className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer select-none shrink-0"
+          title="Expand Atmosphere controls"
+        >
+          <Maximize2 size={13} />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div id="scene_switcher_widget_wrapper" className="bg-theme-panel border border-theme-border backdrop-blur-xl rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.2)] shadow-accent/[0.05] w-full flex flex-col gap-6 transition-all duration-500">
+    <div id="scene_switcher_widget_wrapper" className="bg-theme-panel border border-theme-border backdrop-blur-xl rounded-2xl p-5.5 shadow-[0_8px_32px_rgba(0,0,0,0.2)] shadow-accent/[0.05] w-full flex flex-col gap-6 transition-all duration-500">
       
       {/* 2. Unified Card Header */}
-      <div className="flex justify-between items-center pb-2 border-b border-white/5">
-        <div className="flex items-center gap-2">
-          <Palette size={15} className="text-accent" />
-          <h3 className="text-xs uppercase font-bold tracking-widest font-mono text-zinc-300">
+      <div className="flex justify-between items-center pb-2.5 border-b border-white/5">
+        <div className="flex items-center gap-2.5">
+          <Palette size={16} className="text-accent" />
+          <h3 className="text-xs uppercase font-bold tracking-widest font-mono text-zinc-200">
             Atmosphere Workspace
           </h3>
         </div>
+        <button
+          onClick={toggleMinimize}
+          title="Minimize panel"
+          className="p-1 px-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition cursor-pointer select-none"
+        >
+          <Minimize2 size={13} />
+        </button>
       </div>
 
       {/* 3. Integrated Color Theme Selection Deck */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-mono font-bold uppercase text-zinc-400 tracking-wider">
+          <span className="text-[11px] font-mono font-bold uppercase text-zinc-300 tracking-wider">
             🎨 Active Color Theme
           </span>
           {colorTheme !== 'none' && (
             <button
               onClick={() => onColorThemeSelect('none')}
-              className="text-[9px] font-mono font-bold uppercase text-accent hover:text-white cursor-pointer transition select-none flex items-center gap-1 hover:underline"
+              className="text-[10px] font-mono font-bold uppercase text-accent hover:text-white cursor-pointer transition select-none flex items-center gap-1 hover:underline"
               title="Reset color theme back to default neutral focus style"
             >
               Reset to Default
             </button>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2.5">
           {THEMES.map((t) => {
             const isSelected = colorTheme === t.id;
             return (
               <button
                 key={t.id}
                 onClick={() => onColorThemeSelect(t.id)}
-                className={`relative group text-left rounded-xl p-2.5 overflow-hidden border transition-all duration-300 select-none cursor-pointer flex flex-col justify-between ${
+                className={`relative group text-left rounded-xl p-3 overflow-hidden border transition-all duration-300 select-none cursor-pointer flex flex-col justify-between ${
                   isSelected 
-                    ? 'border-accent shadow-md bg-accent/5 ring-1 ring-accent scale-102 font-black' 
+                    ? 'border-accent shadow-md bg-accent/5 ring-1 ring-accent scale-[1.01] font-black' 
                     : 'border-white/5 hover:border-white/15 bg-black/15'
                 }`}
                 title={t.desc}
               >
                 {/* Micro mini linear gradient block */}
-                <div className={`w-full h-1.5 rounded-full bg-gradient-to-r ${t.grad} mb-2`} />
+                <div className={`w-full h-1.5 rounded-full bg-gradient-to-r ${t.grad} mb-2.5`} />
                 
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className={`text-[10px] font-semibold tracking-wide ${
+                    <span className={`text-xs font-semibold tracking-wide ${
                       isSelected ? 'text-accent' : 'text-zinc-200'
                     }`}>
                       {t.label}
                     </span>
-                    <span className="block text-[8px] font-mono text-zinc-500 lowercase leading-tight mt-0.5">
+                    <span className="block text-[10px] font-mono text-zinc-500 lowercase leading-tight mt-1">
                       {t.desc}
                     </span>
                   </div>
                   {isSelected && (
-                    <div className="bg-accent/20 p-0.5 rounded-full text-accent">
-                      <Check size={8} strokeWidth={3} />
+                    <div className="bg-accent/20 p-0.5 rounded-full text-accent shrink-0">
+                      <Check size={9} strokeWidth={3} />
                     </div>
                   )}
                 </div>
@@ -216,70 +270,70 @@ export default function SceneSwitcher({
       </div>
 
       {/* 4. Backdrop Custom Spaces Deck */}
-      <div className="flex flex-col gap-3 pt-2 border-t border-white/5">
+      <div className="flex flex-col gap-3.5 pt-2.5 border-t border-white/5">
         <div className="flex justify-between items-center">
-          <span className="text-[10px] font-mono font-bold uppercase text-zinc-400 tracking-wider">
+          <span className="text-[11px] font-mono font-bold uppercase text-zinc-300 tracking-wider">
             ✦ Stored Custom Spaces
           </span>
           
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className={`px-2 py-0.5 text-[8px] font-mono font-bold tracking-wider rounded border flex items-center gap-1 cursor-pointer transition select-none uppercase ${
+            className={`px-2.5 py-1 text-[9px] font-mono font-bold tracking-wider rounded border flex items-center gap-1 cursor-pointer transition select-none uppercase ${
               showAddForm
-                ? 'bg-zinc-800 border-zinc-700 text-zinc-355'
+                ? 'bg-zinc-800 border-zinc-700 text-zinc-300'
                 : 'bg-accent/10 border-accent/20 text-accent hover:bg-accent/20'
             }`}
           >
-            <Plus size={10} />
+            <Plus size={11} />
             <span>Load Space</span>
           </button>
         </div>
 
         {/* Slide-down dynamic custom URL backdrop space loader */}
         {showAddForm && (
-          <div className="p-3.5 rounded-xl bg-black/45 border border-white/5 flex flex-col gap-3 transition">
-            <div className="text-[9px] font-mono font-bold text-accent uppercase tracking-wider">
+          <div className="p-4 rounded-xl bg-black/45 border border-white/5 flex flex-col gap-3.5 transition">
+            <div className="text-[10px] font-mono font-bold text-accent uppercase tracking-wider">
               ✦ Custom Atmosphere Assembler
             </div>
 
-            <form onSubmit={handleCreateCustomScene} className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] font-mono text-zinc-500 uppercase font-bold">Display Title</label>
+            <form onSubmit={handleCreateCustomScene} className="flex flex-col gap-3.5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-mono text-zinc-400 uppercase font-bold">Display Title</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g., Stream Window Cabin"
                   value={newSceneName}
                   onChange={(e) => setNewSceneName(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs font-mono bg-zinc-950 border border-white/10 rounded-lg text-zinc-200 placeholder-zinc-650 focus:outline-none focus:border-accent/40"
+                  className="px-3 py-2 text-xs font-mono bg-zinc-950 border border-white/10 rounded-lg text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-accent/40"
                 />
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] font-mono text-zinc-500 uppercase font-bold">Image / Direct MP4 URL</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-mono text-zinc-400 uppercase font-bold">Image / Direct MP4 URL</label>
                 <input
                   type="url"
                   required
                   placeholder="Paste direct wallpaper, direct mp4, or web.gif link"
                   value={newSceneUrl}
                   onChange={(e) => setNewSceneUrl(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs font-mono bg-zinc-950 border border-white/10 rounded-lg text-zinc-200 placeholder-zinc-650 focus:outline-none focus:border-accent/40"
+                  className="px-3 py-2 text-xs font-mono bg-zinc-950 border border-white/10 rounded-lg text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-accent/40"
                 />
-                <span className="text-[8px] font-mono text-zinc-500 lowercase mt-0.5">
+                <span className="text-[9px] font-mono text-zinc-500 lowercase leading-relaxed">
                   * Auto-detects direct video/image links (including Unsplash photo references).
                 </span>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white font-mono text-[10px] font-bold uppercase transition select-none cursor-pointer"
+                className="w-full py-2 rounded-lg bg-accent hover:bg-accent-hover text-white font-mono text-[10px] font-bold uppercase transition select-none cursor-pointer"
               >
                 Assemble Space
               </button>
             </form>
 
             {errorMessage && (
-              <p className="text-[9px] font-mono text-red-400 font-bold tracking-wide">
+              <p className="text-[10px] font-mono text-red-400 font-bold tracking-wide">
                 ✦ {errorMessage}
               </p>
             )}
@@ -287,7 +341,7 @@ export default function SceneSwitcher({
         )}
 
         {/* List of Custom Sceneries */}
-        <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+        <div className="grid grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
           {allAvailableScenes.map((scene) => {
             const isActive = scene.id === activeScene.id;
             const isUserCustom = scene.id.startsWith('custom-') || scene.id.startsWith('custom');
@@ -314,13 +368,13 @@ export default function SceneSwitcher({
                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/95 via-transparent to-transparent z-10 pointer-events-none" />
 
                 {/* Details */}
-                <div className="absolute bottom-2 left-2 right-2 z-20 flex flex-col pointer-events-none select-none">
-                  <span className={`text-[9px] font-semibold tracking-wider leading-tight line-clamp-1 transition duration-300 ${
+                <div className="absolute bottom-2.5 left-2.5 right-2.5 z-20 flex flex-col pointer-events-none select-none">
+                  <span className={`text-xs font-semibold tracking-wider leading-tight line-clamp-1 transition duration-300 ${
                     isActive ? 'text-accent font-extrabold' : 'text-zinc-200 group-hover:text-white'
                   }`}>
                     {scene.name}
                   </span>
-                  <span className="text-[7px] font-mono text-zinc-500 uppercase tracking-widest mt-0.5">
+                  <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mt-0.5">
                     {isUserCustom ? 'User Personal Space' : 'Stable Fallback'}
                   </span>
                 </div>
@@ -346,9 +400,9 @@ export default function SceneSwitcher({
                 {/* Decorative indicator / Type indicator tag */}
                 <div className="absolute top-2 right-2 z-20 flex items-center gap-1 pointer-events-none">
                   {scene.type === 'ai-image' ? (
-                    <Sparkles size={9} className={`${isActive ? 'text-accent' : 'text-zinc-400'}`} />
+                    <Sparkles size={10} className={`${isActive ? 'text-accent' : 'text-zinc-400'}`} />
                   ) : (
-                    <Video size={9} className={`${isActive ? 'text-accent animate-pulse' : 'text-zinc-500'}`} />
+                    <Video size={10} className={`${isActive ? 'text-accent animate-pulse' : 'text-zinc-500'}`} />
                   )}
                   
                   {isActive && (
@@ -367,20 +421,19 @@ export default function SceneSwitcher({
         </div>
 
         {allAvailableScenes.length <= 1 && (
-          <div className="py-5 text-center bg-black/20 rounded-xl border border-dashed border-white/5 flex flex-col items-center justify-center gap-1">
-            <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wide">
+          <div className="py-6 text-center bg-black/20 rounded-xl border border-dashed border-white/5 flex flex-col items-center justify-center gap-1.5">
+            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wide">
               No custom spaces added yet
             </span>
             <button
               onClick={() => setShowAddForm(true)}
-              className="text-[8px] font-mono text-accent hover:underline uppercase tracking-widest font-bold"
+              className="text-[9px] font-mono text-accent hover:underline uppercase tracking-widest font-bold"
             >
               ✦ LOAD NEW URL BACKDROP
             </button>
           </div>
         )}
       </div>
-
     </div>
   );
 }

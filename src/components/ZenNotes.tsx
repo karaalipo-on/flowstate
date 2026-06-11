@@ -115,7 +115,7 @@ export default function ZenNotes() {
             setContent(e.target.value);
             setSavingState('saving');
           }}
-          className={`w-full bg-transparent text-zinc-300 focus:outline-none resize-none font-sans overflow-y-auto leading-relaxed h-32 pl-0.5 placeholder-zinc-600 ${fontSize}`}
+          className={`w-full bg-transparent text-zinc-300 focus:outline-none resize-none font-sans overflow-y-auto leading-relaxed h-72 pl-0.5 placeholder-zinc-600 ${fontSize}`}
           placeholder="Write down anything to clear your mind. Thoughts persist across browser updates..."
         />
 

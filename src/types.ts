@@ -19,6 +19,7 @@ export interface Task {
   subtasks: SubTask[];
   notes?: string;
   createdAt: number;
+  completedAt?: number;
 }
 
 export type SceneCategory = 'nature' | 'city' | 'study' | 'aesthetic' | 'lofi';

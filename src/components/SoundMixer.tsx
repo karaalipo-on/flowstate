@@ -10,7 +10,9 @@ import {
   Coffee, 
   Bird, 
   Trees, 
-  Droplet
+  Droplet,
+  Minimize2,
+  Maximize2
 } from 'lucide-react';
 import { SoundGeneratorType } from '../types';
 import { audioSynthesizer } from '../utils/audioSynthesizer';
@@ -97,6 +99,23 @@ export default function SoundMixer() {
   ]);
 
   const [mixerActive, setMixerActive] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(() => {
+    try {
+      return localStorage.getItem('flowstate_sound_mixer_minimized') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleMinimize = () => {
+    setIsMinimized(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('flowstate_sound_mixer_minimized', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     const handleActivateDefault = () => {
@@ -198,40 +217,96 @@ export default function SoundMixer() {
     setMixerActive(false);
   };
 
+  const activeSoundsList = sounds.filter(s => s.isPlaying).map(s => s.name.split(' ')[0]);
+
+  if (isMinimized) {
+    return (
+      <div 
+        id="ambient_sound_mixer_wrapper" 
+        className={`bg-theme-panel backdrop-blur-xl rounded-2xl p-4.5 shadow-[0_8px_32px_rgba(0,0,0,0.22)] w-full flex items-center justify-between transition-all duration-300 border ${
+          mixerActive ? 'border-accent/35 shadow-accent/[0.08]' : 'border-theme-border shadow-accent/[0.03]'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-accent/15 border border-accent/20 rounded-xl text-accent">
+            <FlameKindling size={16} className={mixerActive ? "animate-pulse" : ""} />
+          </div>
+          <div className="flex flex-col">
+            <h3 className="text-xs uppercase font-semibold tracking-wider font-mono text-zinc-300">
+              Ambient Generator
+            </h3>
+            <span className="text-[11px] font-mono font-medium text-accent uppercase tracking-wide">
+              {mixerActive ? `Active: ${activeSoundsList.join(', ')}` : 'Standing By'}
+            </span>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {mixerActive && (
+            <button
+              onClick={handleAllSilence}
+              className="px-2.5 py-1.5 text-[9px] font-mono font-bold bg-rose-950/40 border border-rose-500/20 text-rose-300 rounded-lg hover:bg-rose-900/50 hover:text-white transition cursor-pointer"
+              title="Silence all background synthesis"
+            >
+              Mute
+            </button>
+          )}
+          <button
+            onClick={toggleMinimize}
+            className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer select-none shrink-0"
+            title="Expand Ambient Generator"
+          >
+            <Maximize2 size={13} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div 
       id="ambient_sound_mixer_wrapper" 
-      className={`bg-theme-panel backdrop-blur-xl rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.22)] w-full flex flex-col transition-all duration-500 border ${
+      className={`bg-theme-panel backdrop-blur-xl rounded-2xl p-5.5 shadow-[0_8px_32px_rgba(0,0,0,0.22)] w-full flex flex-col transition-all duration-500 border ${
         mixerActive 
           ? 'border-accent/35 shadow-accent/[0.08] scale-[1.015]' 
           : 'border-theme-border shadow-accent/[0.03]'
       }`}
     >
       {/* Header section */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <FlameKindling size={16} className={mixerActive ? "text-accent animate-pulse" : "text-zinc-500"} />
-          <h3 className="text-xs uppercase font-bold tracking-widest font-mono text-zinc-300">
+      <div className="flex justify-between items-center mb-4.5 pb-2 border-b border-white/5">
+        <div className="flex items-center gap-2.5">
+          <FlameKindling size={16} className={mixerActive ? "text-accent animate-pulse" : "text-zinc-400"} />
+          <h3 className="text-xs uppercase font-bold tracking-widest font-mono text-zinc-200">
             Ambient Generator
           </h3>
         </div>
-        {mixerActive && (
+        
+        <div className="flex items-center gap-2">
+          {mixerActive && (
+            <button
+              onClick={handleAllSilence}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono font-bold bg-rose-950/40 border border-rose-500/20 text-rose-300 rounded-lg hover:bg-rose-900/50 hover:text-white transition cursor-pointer"
+            >
+              <VolumeX size={11} />
+              <span>MUTE ALL</span>
+            </button>
+          )}
           <button
-            onClick={handleAllSilence}
-            className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono font-bold bg-rose-950/40 border border-rose-500/20 text-rose-300 rounded-lg hover:bg-rose-900/50 hover:text-white transition cursor-pointer"
+            onClick={toggleMinimize}
+            title="Minimize panel"
+            className="p-1 px-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition cursor-pointer select-none"
           >
-            <VolumeX size={11} />
-            <span>MUTE LIST</span>
+            <Minimize2 size={13} />
           </button>
-        )}
+        </div>
       </div>
 
       {/* System controllers stack */}
-      <div className="flex flex-col gap-3 max-h-[480px] overflow-y-auto pr-1">
+      <div className="flex flex-col gap-3.5 max-h-[480px] overflow-y-auto pr-1">
         {sounds.map((sound) => (
           <div
             key={sound.id}
-            className={`flex flex-col gap-2 p-3 rounded-xl transition duration-300 border ${
+            className={`flex flex-col gap-2 p-3.5 rounded-xl transition duration-300 border ${
               sound.isPlaying 
                 ? 'bg-accent/5 border-accent/25 shadow-[0_0_12px_rgba(var(--accent-glow),0.02)]' 
                 : 'bg-transparent border-transparent hover:bg-white/2 hover:border-white/5'
@@ -240,29 +315,29 @@ export default function SoundMixer() {
             <div className="flex items-center justify-between gap-4">
               <button
                 onClick={() => handleToggleSound(sound.type)}
-                className="flex items-center gap-3 text-left flex-1 cursor-pointer select-none"
+                className="flex items-center gap-3.5 text-left flex-1 cursor-pointer select-none"
               >
-                <div className={`p-2.5 rounded-xl border transition duration-300 ${
+                <div className={`p-3 rounded-xl border transition duration-300 ${
                   sound.isPlaying 
                     ? 'bg-accent/10 border-accent/20' 
-                    : 'bg-zinc-800/20 border-white/5'
+                    : 'bg-zinc-805/20 border-white/5'
                 }`}>
                   {renderIcon(sound.iconName, sound.isPlaying)}
                 </div>
                 <div className="flex flex-col select-none">
-                  <span className={`text-xs font-semibold tracking-wide ${
-                    sound.isPlaying ? 'text-[#fafafa]' : 'text-zinc-400'
+                  <span className={`text-xs sm:text-sm font-semibold tracking-wide ${
+                    sound.isPlaying ? 'text-[#fafafa]' : 'text-zinc-300'
                   }`}>
                     {sound.name}
                   </span>
-                  <span className="text-[9px] font-mono text-zinc-500 tracking-wider">
+                  <span className="text-[10px] font-mono text-zinc-500 tracking-wider">
                     {sound.isPlaying ? 'PROCEDURAL: RUNNING' : 'STANDING BY'}
                   </span>
                 </div>
               </button>
 
               {sound.isPlaying ? (
-                <div className="flex items-center gap-2 w-24">
+                <div className="flex items-center gap-2.5 w-24">
                   <input
                     type="range"
                     min="0"
@@ -272,14 +347,14 @@ export default function SoundMixer() {
                     onChange={(e) => handleVolumeChange(sound.type, parseFloat(e.target.value))}
                     className="w-full accent-accent h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
                   />
-                  <span className="text-[9px] font-mono text-zinc-500 w-5 text-right font-bold">
+                  <span className="text-[10px] font-mono text-zinc-400 w-6 text-right font-bold">
                     {Math.round(sound.volume * 100)}%
                   </span>
                 </div>
               ) : (
                 <button
                   onClick={() => handleToggleSound(sound.type)}
-                  className="text-[10px] font-mono font-bold text-zinc-500 hover:text-white px-2 py-1 rounded border border-zinc-700/50 hover:bg-zinc-800/40 select-none cursor-pointer"
+                  className="text-xs font-mono font-bold text-zinc-400 hover:text-white px-2.5 py-1.5 rounded border border-zinc-700/50 hover:bg-zinc-800/45 select-none cursor-pointer"
                 >
                   PLAY
                 </button>

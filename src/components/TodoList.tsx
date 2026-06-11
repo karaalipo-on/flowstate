@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, CheckCircle2, Circle, ChevronDown, ChevronUp, AlertCircle, PlusCircle, CheckSquare, Square, FileText, GripVertical } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Task, SubTask } from '../types';
 
 export default function TodoList() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'Work' | 'Personal' | 'Study' | 'General'>('all');
   
   // Drag-and-drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -18,6 +20,49 @@ export default function TodoList() {
       return '';
     }
   });
+
+  const [isPrimaryCompleted, setIsPrimaryCompleted] = useState(() => {
+    try {
+      return localStorage.getItem('flowstate_primary_completed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [reflection, setReflection] = useState('');
+  const [reflectionSaved, setReflectionSaved] = useState(false);
+
+  const togglePrimaryCompleted = () => {
+    setIsPrimaryCompleted(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('flowstate_primary_completed', String(next));
+        window.dispatchEvent(new CustomEvent('zenspace_tasks_updated'));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleSaveReflection = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reflection.trim()) return;
+    const newEntry = {
+      id: Date.now().toString(),
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      goal: primaryFocus,
+      text: reflection.trim()
+    };
+    try {
+      const stored = localStorage.getItem('flowstate_reflections') || '[]';
+      const list = JSON.parse(stored);
+      list.push(newEntry);
+      localStorage.setItem('flowstate_reflections', JSON.stringify(list));
+      setReflectionSaved(true);
+      setReflection('');
+      setTimeout(() => setReflectionSaved(false), 3000);
+    } catch (err) {
+      console.warn("Failed to save reflection:", err);
+    }
+  };
   
   // Controls for creating a new task
   const [newText, setNewText] = useState('');
@@ -55,6 +100,7 @@ export default function TodoList() {
     setTasks(allTasks);
     try {
       localStorage.setItem('zenspace_tasks', JSON.stringify(allTasks));
+      window.dispatchEvent(new CustomEvent('zenspace_tasks_updated'));
     } catch (e) {
       console.warn("Could not save tasks to localStorage:", e);
     }
@@ -103,7 +149,12 @@ export default function TodoList() {
   const handleToggleTask = (id: string) => {
     const updated = tasks.map((t) => {
       if (t.id === id) {
-        return { ...t, completed: !t.completed };
+        const completed = !t.completed;
+        return { 
+          ...t, 
+          completed,
+          completedAt: completed ? Date.now() : undefined
+        };
       }
       return t;
     });
@@ -216,8 +267,11 @@ export default function TodoList() {
 
   // Filter tasks
   const filteredTasks = tasks.filter((t) => {
-    if (filter === 'pending') return !t.completed;
-    if (filter === 'completed') return t.completed;
+    // Completion filter
+    if (filter === 'pending' && t.completed) return false;
+    if (filter === 'completed' && !t.completed) return false;
+    // Category filter
+    if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
     return true;
   });
 
@@ -287,29 +341,97 @@ export default function TodoList() {
           </div>
         </div>
 
-        <span className="text-[10px] font-mono text-zinc-500">
-          {tasks.filter(t => !t.completed).length} items remaining
-        </span>
+        <div className="flex items-center gap-2">
+          {/* Dropdown filter for category */}
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value as any)}
+            className="bg-black/40 border border-white/5 rounded-lg text-[10px] font-mono p-1.5 px-2 text-zinc-305 focus:outline-none focus:border-accent cursor-pointer select-none"
+            title="Filter tasks by category"
+          >
+            <option value="all">📂 All Tags</option>
+            <option value="General">General</option>
+            <option value="Work">💼 Work</option>
+            <option value="Personal">🏠 Personal</option>
+            <option value="Study">📚 Study</option>
+          </select>
+
+          <span className="text-[10px] font-mono text-zinc-550 shrink-0">
+             ({tasks.filter(t => !t.completed).length} left)
+          </span>
+        </div>
       </div>
 
       {/* Primary Session Goal Input Block */}
-      <div id="primary_daily_focus_goal" className="mb-4 bg-zinc-950/40 p-2.5 rounded-xl border border-white/5 flex flex-col gap-1 shadow-inner">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px]" role="img" aria-label="Target">🎯</span>
-          <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-accent">Primary Session focus</span>
+      <div id="primary_daily_focus_goal" className={`mb-4 p-3 rounded-xl border flex flex-col gap-1.5 transition-all duration-300 shadow-inner ${
+        isPrimaryCompleted
+          ? 'bg-emerald-950/20 border-emerald-500/20'
+          : 'bg-zinc-950/40 border-white/5'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px]" role="img" aria-label="Target">🎯</span>
+            <span className={`text-[9px] font-mono font-bold uppercase tracking-widest ${
+              isPrimaryCompleted ? 'text-emerald-400 font-extrabold' : 'text-accent'
+            }`}>
+              {isPrimaryCompleted ? '✓ Primary Goal Completed' : 'Primary Session focus'}
+            </span>
+          </div>
+          {primaryFocus && (
+            <button
+              type="button"
+              onClick={togglePrimaryCompleted}
+              className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded transition cursor-pointer select-none ${
+                isPrimaryCompleted
+                  ? 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/20'
+                  : 'bg-accent/10 border border-accent/25 text-accent hover:bg-accent/20'
+              }`}
+            >
+              {isPrimaryCompleted ? 'Reopen Goal' : 'Complete Goal'}
+            </button>
+          )}
         </div>
-        <div className="flex items-center gap-2 mt-0.5">
+        <div className="flex items-center gap-3 mt-0.5">
+          {primaryFocus && (
+            <button
+              type="button"
+              onClick={togglePrimaryCompleted}
+              className={`text-zinc-500 transition hover:scale-105 cursor-pointer ${
+                isPrimaryCompleted ? 'text-emerald-400' : 'text-zinc-500 hover:text-accent'
+              }`}
+              title={isPrimaryCompleted ? "Mark Uncompleted" : "Mark Goal Completed"}
+            >
+              {isPrimaryCompleted ? (
+                <CheckCircle2 size={15} className="text-emerald-400" />
+              ) : (
+                <Circle size={15} />
+              )}
+            </button>
+          )}
           <input
             type="text"
             placeholder="Set a single clear session goal..."
             value={primaryFocus}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPrimaryFocus(e.target.value)}
-            className="w-full bg-transparent text-[11px] font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-b focus:border-white/10 pb-0.5 transition-all"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              setPrimaryFocus(e.target.value);
+              if (isPrimaryCompleted && !e.target.value) {
+                setIsPrimaryCompleted(false);
+                localStorage.setItem('flowstate_primary_completed', 'false');
+              }
+            }}
+            disabled={isPrimaryCompleted}
+            className={`w-full bg-transparent text-xs font-medium text-white placeholder-zinc-500 focus:outline-none transition-all ${
+              isPrimaryCompleted ? 'line-through text-zinc-500 font-normal italic' : 'pb-0.5 focus:border-b focus:border-white/10'
+            }`}
           />
-          {primaryFocus && (
+          {primaryFocus && !isPrimaryCompleted && (
             <button
               type="button"
-              onClick={() => setPrimaryFocus('')}
+              onClick={() => {
+                setPrimaryFocus('');
+                setIsPrimaryCompleted(false);
+                localStorage.setItem('flowstate_primary_completed', 'false');
+              }}
               className="text-[11px] text-zinc-500 hover:text-white transition px-1 cursor-pointer"
               title="Clear primary focus"
             >
@@ -318,6 +440,43 @@ export default function TodoList() {
           )}
         </div>
       </div>
+
+      {/* Daily Reflection prompt card */}
+      {isPrimaryCompleted && primaryFocus && (
+        <div id="daily_reflection_prompt_card" className="mb-4 bg-gradient-to-br from-indigo-950/40 to-violet-950/20 p-4.5 rounded-xl border border-indigo-500/20 flex flex-col gap-3 shadow-[0_4px_24px_rgba(var(--accent-glow),0.02)] transition duration-305">
+          <div className="flex items-center gap-2">
+            <span className="text-xs">✨</span>
+            <span className="text-[10px] font-mono font-bold uppercase text-indigo-300 tracking-wider">
+              ✦ Daily Reflection Card
+            </span>
+          </div>
+
+          <h4 className="text-xs font-sans font-semibold text-zinc-200 leading-relaxed">
+            Congratulations on completing your primary goal: "{primaryFocus}"! How did it go, and what was the main takeaway?
+          </h4>
+
+          {reflectionSaved ? (
+            <div className="py-2.5 text-center text-xs font-semibold text-emerald-400 font-mono flex items-center justify-center gap-1.5 bg-emerald-950/15 border border-emerald-500/10 rounded-lg">
+              <span>✦ Journal reflection saved securely!</span>
+            </div>
+          ) : (
+            <form onSubmit={handleSaveReflection} className="flex flex-col gap-2.5">
+              <textarea
+                placeholder="Write a quick reflection entry..."
+                value={reflection}
+                onChange={(e) => setReflection(e.target.value)}
+                className="w-full text-xs bg-black/40 border border-white/5 rounded-xl p-3 text-zinc-200 placeholder-zinc-600 min-h-20 focus:outline-none focus:border-indigo-500/45 resize-none"
+              />
+              <button
+                type="submit"
+                className="w-full py-2 bg-indigo-650 hover:bg-indigo-600 text-white font-mono text-[9px] font-bold uppercase rounded-lg tracking-widest transition select-none cursor-pointer text-center"
+              >
+                Save Reflection Entry
+              </button>
+            </form>
+          )}
+        </div>
+      )}
 
       {/* New Task creation form */}
       <form onSubmit={handleCreateTask} className="flex flex-col gap-2.5 mb-5 bg-black/20 p-3 rounded-xl border border-white/5">
@@ -359,8 +518,8 @@ export default function TodoList() {
         </div>
 
         {/* Configurations layout */}
-        <div className="flex items-center justify-between gap-2.5">
-          <div className="flex gap-1">
+        <div className="flex flex-wrap items-center justify-between gap-y-2.5 gap-x-1.5 w-full">
+          <div className="flex gap-1 flex-wrap">
             {(['low', 'medium', 'high'] as const).map((p) => (
               <button
                 key={p}
@@ -377,7 +536,7 @@ export default function TodoList() {
             ))}
           </div>
 
-          <div className="flex items-center gap-1.5 font-mono text-[9px] text-zinc-400">
+          <div className="flex items-center gap-1.5 font-mono text-[9px] text-zinc-400 whitespace-nowrap">
             <span>Est. Pomos:</span>
             <input
               type="number"
@@ -391,39 +550,39 @@ export default function TodoList() {
 
           <button
             type="submit"
-            className="flex items-center gap-1 bg-zinc-100 hover:bg-white text-black font-bold tracking-wider rounded-lg px-2.5 py-1 text-[9px] uppercase cursor-pointer transition"
+            className="flex items-center justify-center gap-1 bg-zinc-100 hover:bg-white text-black font-bold tracking-wider rounded-lg px-2.5 py-1 text-[9px] uppercase cursor-pointer transition shrink-0 ml-auto sm:ml-0"
           >
-            <Plus size={12} />
+            <Plus size={12} strokeWidth={2.5} />
             <span>ADD</span>
           </button>
         </div>
       </form>
 
       {/* Task Filters tabs */}
-      <div className="flex gap-1.5 bg-black/20 p-1 rounded-xl mb-4 text-[9px] uppercase font-mono font-bold tracking-wider">
-        <button
-          onClick={() => setFilter('all')}
-          className={`flex-1 text-center py-1 rounded-lg transition overflow-hidden cursor-pointer ${
-            filter === 'all' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          All ({tasks.length})
-        </button>
+      <div className="flex gap-1.5 bg-black/30 p-1 rounded-xl mb-4 text-[9px] uppercase font-mono font-bold tracking-wider">
         <button
           onClick={() => setFilter('pending')}
-          className={`flex-1 text-center py-1 rounded-lg transition overflow-hidden cursor-pointer ${
-            filter === 'pending' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'
+          className={`flex-1 text-center py-1.5 rounded-lg transition overflow-hidden cursor-pointer ${
+            filter === 'pending' ? 'bg-zinc-100 text-zinc-950 font-extrabold shadow-sm' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
           }`}
         >
           Active ({tasks.filter((t) => !t.completed).length})
         </button>
         <button
           onClick={() => setFilter('completed')}
-          className={`flex-1 text-center py-1 rounded-lg transition overflow-hidden cursor-pointer ${
-            filter === 'completed' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'
+          className={`flex-1 text-center py-1.5 rounded-lg transition overflow-hidden cursor-pointer ${
+            filter === 'completed' ? 'bg-zinc-100 text-zinc-950 font-extrabold shadow-sm' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
           }`}
         >
           Completed ({tasks.filter((t) => t.completed).length})
+        </button>
+        <button
+          onClick={() => setFilter('all')}
+          className={`flex-1 text-center py-1.5 rounded-lg transition overflow-hidden cursor-pointer ${
+            filter === 'all' ? 'bg-zinc-100 text-zinc-950 font-extrabold shadow-sm' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+          }`}
+        >
+          All ({tasks.length})
         </button>
       </div>
 
@@ -634,6 +793,7 @@ export default function TodoList() {
           })
         )}
       </div>
+
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { Play, Pause, RotateCcw, ChevronRight, Settings, Volume2, VolumeX, Check
 import { TimerMode, TimerSettings } from '../types';
 
 interface TimerProps {
-  onTimerComplete?: (mode: TimerMode) => void;
+  onTimerComplete?: (mode: TimerMode, durationMinutes: number) => void;
 }
 
 export default function Timer({ onTimerComplete }: TimerProps) {
@@ -98,7 +98,7 @@ export default function Timer({ onTimerComplete }: TimerProps) {
     }
 
     if (onTimerComplete) {
-      onTimerComplete(mode);
+      onTimerComplete(mode, settings[mode]);
     }
 
     // Advance session modes

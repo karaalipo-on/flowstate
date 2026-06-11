@@ -10,6 +10,7 @@ import TodoList from './components/TodoList';
 import SceneSwitcher from './components/SceneSwitcher';
 import ZenNotes from './components/ZenNotes';
 import MusicPlayer from './components/MusicPlayer';
+import StatisticBoard from './components/StatisticBoard';
 
 export default function App() {
   const [activeScene, setActiveScene] = useState<Scene>(() => {
@@ -131,8 +132,22 @@ export default function App() {
   };
 
   // Callback when focus timer completes
-  const handleTimerCompleteProgress = (mode: TimerMode) => {
-    console.log(`Focus stage ended in state: ${mode}`);
+  const handleTimerCompleteProgress = (mode: TimerMode, durationMinutes: number) => {
+    console.log(`Focus stage ended in state: ${mode} for duration ${durationMinutes}m`);
+    if (mode === 'work') {
+      try {
+        const stored = localStorage.getItem('zenspace_focus_sessions') || '[]';
+        const sessionsList = JSON.parse(stored);
+        sessionsList.push({
+          timestamp: Date.now(),
+          durationMinutes: durationMinutes || 25
+        });
+        localStorage.setItem('zenspace_focus_sessions', JSON.stringify(sessionsList));
+        window.dispatchEvent(new CustomEvent('zenspace_tasks_updated')); // refresh stats
+      } catch (e) {
+        console.warn("Could not save focus session to stats history:", e);
+      }
+    }
   };
 
   return (
@@ -240,8 +255,8 @@ export default function App() {
           {/* A. DESKTOP VIEW - Beautiful Bento grid layout */}
           <div className="hidden md:grid grid-cols-12 gap-6 items-start">
             
-            {/* Col 1 - Environment switchers (Scenes/Sounds) */}
-            <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
+            {/* Col 1 - Environment switchers (Scenes/Sounds) & Collapsible Statistics */}
+            <div className="col-span-12 lg:col-span-4 flex flex-col gap-6 font-sans">
               <SceneSwitcher 
                 activeScene={activeScene} 
                 onSceneSelect={setActiveScene} 
@@ -249,17 +264,18 @@ export default function App() {
                 onColorThemeSelect={setColorTheme}
               />
               <SoundMixer />
+              <StatisticBoard />
             </div>
 
-            {/* Col 2 - Primary Pomodoro Timer Focus */}
-            <div className="col-span-12 md:col-span-6 lg:col-span-4 flex justify-center">
+            {/* Col 2 - Primary Pomodoro Timer Focus & Wide Scratch Pad */}
+            <div className="col-span-12 md:col-span-6 lg:col-span-4 flex flex-col gap-6 items-center w-full">
               <Timer onTimerComplete={handleTimerCompleteProgress} />
+              <ZenNotes />
             </div>
 
-            {/* Col 3 - Productivity checklists & Notepad */}
+            {/* Col 3 - Productivity checklists & Music */}
             <div className="col-span-12 md:col-span-6 lg:col-span-4 flex flex-col gap-6 font-sans">
               <TodoList />
-              <ZenNotes />
               <MusicPlayer />
             </div>
 
